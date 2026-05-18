@@ -6,10 +6,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from src.api.routes import _db, _orchestrator
+from src.api.routes import _db, _orchestrator, _scoring_config
 from src.agents.orchestrator import Orchestrator
 from src.pipeline.runner import SourceConfig
 from src.parsers.normalizer import Availability, Product
+from src.scoring.engine import ScoringConfig, CriterionConfig
 from src.storage.db import Base, upsert_product
 
 
@@ -49,10 +50,18 @@ def _bare_app(session: AsyncSession, orch: MagicMock):
             yield s
         return _override
 
+    scoring = ScoringConfig(criteria=[
+        CriterionConfig(id="price_range", label="Sells for $50–$75", scorer="price_range",
+                        weight=1.0, params={"min": 50, "max": 75}),
+        CriterionConfig(id="community_interest", label="FB group interest", scorer="manual",
+                        weight=1.0, params={"default_score": 5.0}),
+    ])
+
     app = FastAPI()
     app.include_router(router)
     app.dependency_overrides[_db] = _make_db_override(session)
     app.dependency_overrides[_orchestrator] = lambda: orch
+    app.dependency_overrides[_scoring_config] = lambda: scoring
     return app
 
 
@@ -309,3 +318,115 @@ class TestListJobs:
         assert len(data) == 1
         assert data[0]["id"] == "test_store"
         assert data[0]["paused"] is False
+
+
+# ── /products/{id}/score ──────────────────────────────────────────────────────
+
+class TestScoreProduct:
+    @pytest.mark.asyncio
+    async def test_returns_score_response(self, client):
+        c, session, _ = client
+        record = await upsert_product(session, _product_obj())
+        resp = await c.get(f"/products/{record.id}/score")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["product_id"] == record.id
+        assert "total_score" in data
+        assert "grade" in data
+        assert isinstance(data["scores"], list)
+        assert len(data["scores"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_score_response_has_criterion_fields(self, client):
+        c, session, _ = client
+        record = await upsert_product(session, _product_obj())
+        resp = await c.get(f"/products/{record.id}/score")
+        assert resp.status_code == 200
+        s = resp.json()["scores"][0]
+        assert "criterion_id" in s
+        assert "label" in s
+        assert "score" in s
+        assert "weight" in s
+        assert "rationale" in s
+
+    @pytest.mark.asyncio
+    async def test_404_for_unknown_product(self, client):
+        c, _, _ = client
+        resp = await c.get("/products/99999/score")
+        assert resp.status_code == 404
+
+
+# ── /scores ───────────────────────────────────────────────────────────────────
+
+class TestListScores:
+    @pytest.mark.asyncio
+    async def test_empty_returns_empty_list(self, client):
+        c, _, _ = client
+        resp = await c.get("/scores")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["items"] == []
+        assert data["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_returns_scored_products(self, client):
+        c, session, _ = client
+        await upsert_product(session, _product_obj())
+        resp = await c.get("/scores")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["count"] == 1
+        assert len(data["items"]) == 1
+        item = data["items"][0]
+        assert "total_score" in item
+        assert "grade" in item
+        assert item["product"]["name"] == "Widget Pro"
+
+    @pytest.mark.asyncio
+    async def test_min_score_filter(self, client):
+        c, session, _ = client
+        await upsert_product(session, _product_obj())
+        resp_all = await c.get("/scores", params={"min_score": 0.0})
+        assert resp_all.json()["count"] == 1
+
+        resp_high = await c.get("/scores", params={"min_score": 9.9})
+        assert resp_high.json()["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_source_filter(self, client):
+        c, session, _ = client
+        await upsert_product(session, _product_obj())
+        resp = await c.get("/scores", params={"source": "test_store"})
+        assert resp.json()["count"] == 1
+
+        resp2 = await c.get("/scores", params={"source": "other_store"})
+        assert resp2.json()["count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_pagination(self, client):
+        c, session, _ = client
+        for i in range(4):
+            await upsert_product(session, _product_obj(url=f"https://example.com/p/{i}"))
+        resp = await c.get("/scores", params={"limit": 2, "offset": 0})
+        assert len(resp.json()["items"]) == 2
+        assert resp.json()["count"] == 4
+
+        resp2 = await c.get("/scores", params={"limit": 2, "offset": 2})
+        assert len(resp2.json()["items"]) == 2
+
+    @pytest.mark.asyncio
+    async def test_sorted_best_first(self, client):
+        c, session, _ = client
+        # price_range scorer: $62.50 (midpoint of $50-75) → 10.0
+        # $29.99 (below range) → lower score
+        from decimal import Decimal
+        p_good = _product_obj(url="https://example.com/good")
+        p_good.price = Decimal("62.50")
+        p_bad = _product_obj(url="https://example.com/bad")
+        p_bad.price = Decimal("5.00")
+        await upsert_product(session, p_good)
+        await upsert_product(session, p_bad)
+        resp = await c.get("/scores")
+        assert resp.status_code == 200
+        items = resp.json()["items"]
+        assert items[0]["product"]["url"] == "https://example.com/good"

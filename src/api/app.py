@@ -4,15 +4,7 @@ from fastapi import FastAPI
 
 from src.agents.orchestrator import Orchestrator
 from src.api.routes import router
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    orch = Orchestrator()
-    await orch.setup()
-    app.state.orchestrator = orch
-    yield
-    await orch.stop()
+from src.scoring.engine import load_scoring_config
 
 
 def create_app(sources_path: str = "config/sources.yaml") -> FastAPI:
@@ -21,6 +13,7 @@ def create_app(sources_path: str = "config/sources.yaml") -> FastAPI:
         orch = Orchestrator(sources_path=sources_path)
         await orch.setup()
         app.state.orchestrator = orch
+        app.state.scoring_config = load_scoring_config(sources_path)
         yield
         await orch.stop()
 

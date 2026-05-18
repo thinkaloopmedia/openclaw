@@ -91,6 +91,31 @@ class JobResponse(BaseModel):
     paused: bool
 
 
+# ── scoring ───────────────────────────────────────────────────────────────────
+
+class CriterionScoreResponse(BaseModel):
+    criterion_id: str
+    label: str
+    score: float
+    weight: float
+    rationale: str
+
+
+class ProductScoreResponse(BaseModel):
+    product_id: int
+    product: ProductResponse
+    total_score: float
+    grade: str
+    scores: list[CriterionScoreResponse]
+
+
+class ScoreListResponse(BaseModel):
+    items: list[ProductScoreResponse]
+    count: int
+    limit: int
+    offset: int
+
+
 # ── health ────────────────────────────────────────────────────────────────────
 
 class HealthResponse(BaseModel):
