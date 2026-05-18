@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "openclaw"
+version = "0.1.0"
+description = "Autonomous product data retrieval agent"
+requires-python = ">=3.11"
+dependencies = [
+    "httpx",
+    "beautifulsoup4",
+    "lxml",
+    "pydantic",
+    "pydantic-settings",
+    "sqlalchemy[asyncio]",
+    "alembic",
+    "aiosqlite",
+    "redis[asyncio]",
+    "apscheduler",
+    "fastapi",
+    "uvicorn",
+    "pyyaml",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "pytest-asyncio", "httpx", "ruff", "mypy"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+pythonpath = ["."]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore::DeprecationWarning:apscheduler",
+    "ignore::DeprecationWarning:sqlalchemy",
+]
+
+[tool.ruff]
+line-length = 100
+
+[tool.mypy]
+strict = true

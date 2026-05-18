@@ -1,0 +1,15 @@
+sources:
+  - name: example_store
+    base_url: https://example.com
+    enabled: false
+    schedule: "0 */6 * * *"
+    fetch_ttl: 3600
+    parser: product
+    selectors:
+      name: "h1.product-title"
+      price: "span.price"
+      sku: "span[data-sku]"
+      availability: "div.stock-status"
+    urls:
+      - https://example.com/products/widget-pro
+      - https://example.com/products/gadget-x
