@@ -1,3 +1,65 @@
+scoring:
+  criteria:
+    - id: fits_in_shoebox
+      label: "Fits in a shoebox"
+      weight: 1.0
+      scorer: size_estimate
+
+    - id: non_breakable
+      label: "Non-breakable"
+      weight: 1.0
+      scorer: durability
+
+    - id: looks_premium
+      label: "Looks premium"
+      weight: 1.0
+      scorer: premium_look
+
+    - id: under_2lbs
+      label: "Under 2 lbs"
+      weight: 1.0
+      scorer: weight_estimate
+
+    - id: single_sku
+      label: "One SKU, no size variations"
+      weight: 1.0
+      scorer: single_sku
+
+    - id: markup_4x
+      label: "4× markup potential"
+      weight: 1.0
+      scorer: markup_potential
+      params:
+        target_multiple: 4.0
+
+    - id: high_ratings
+      label: "4-star+ on Amazon & other stores"
+      weight: 1.0
+      scorer: rating_score
+      params:
+        min_stars: 4.0
+        rating_field: rating
+
+    - id: price_range
+      label: "Sells for $50–$75"
+      weight: 1.0
+      scorer: price_range
+      params:
+        min: 50
+        max: 75
+
+    - id: evergreen
+      label: "Evergreen product"
+      weight: 1.0
+      scorer: evergreen
+
+    - id: community_interest
+      label: "High community interest (FB group)"
+      weight: 1.0
+      scorer: manual
+      params:
+        default_score: 5.0
+
 sources:
   - name: books_to_scrape
     base_url: https://books.toscrape.com
