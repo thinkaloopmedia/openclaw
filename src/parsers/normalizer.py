@@ -43,6 +43,18 @@ _AVAILABILITY_PATTERNS: list[tuple[re.Pattern[str], Availability]] = [
     (re.compile(r"\b(pre[\s_-]?order|coming[\s_-]?soon|pre[\s_-]?sale)\b", re.I), Availability.PREORDER),
 ]
 
+# Approximate mid-market rates to USD — update periodically
+FX_TO_USD: dict[str, Decimal] = {
+    "GBP": Decimal("1.27"),
+    "EUR": Decimal("1.08"),
+    "CAD": Decimal("0.73"),
+    "AUD": Decimal("0.65"),
+    "CHF": Decimal("1.12"),
+    "JPY": Decimal("0.0067"),
+    "INR": Decimal("0.012"),
+    "KRW": Decimal("0.00073"),
+}
+
 # Currency symbols → ISO 4217 code
 _SYMBOL_TO_ISO: dict[str, str] = {
     "$": "USD",
@@ -71,6 +83,12 @@ _PRICE_RE = re.compile(
 def normalize(raw: RawProduct) -> Product:
     price, detected_currency = _parse_price(raw.price)
     currency = _normalize_currency(raw.currency) or detected_currency
+
+    if price is not None and currency is not None and currency != "USD":
+        rate = FX_TO_USD.get(currency)
+        if rate is not None:
+            price = (price * rate).quantize(Decimal("0.01"))
+            currency = "USD"
 
     return Product(
         url=raw.url,

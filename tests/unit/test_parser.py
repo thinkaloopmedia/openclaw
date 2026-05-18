@@ -3,7 +3,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from src.parsers.normalizer import Availability, normalize
+from src.parsers.normalizer import Availability, FX_TO_USD, normalize
 from src.parsers.product import ParseError, RawProduct, parse
 from src.retrieval.fetcher import FetchResult
 
@@ -112,14 +112,16 @@ class TestNormalize:
 
     def test_price_currency_code_prefix(self):
         product = normalize(_raw(price="EUR 49.95"))
-        assert product.price == Decimal("49.95")
-        assert product.currency == "EUR"
+        assert product.currency == "USD"
+        assert product.price == (Decimal("49.95") * FX_TO_USD["EUR"]).quantize(Decimal("0.01"))
 
     def test_currency_field_overrides_detected_currency(self):
         product = normalize(_raw(price="$9.99", currency="CAD"))
-        assert product.currency == "CAD"
+        assert product.currency == "USD"
+        assert product.price == (Decimal("9.99") * FX_TO_USD["CAD"]).quantize(Decimal("0.01"))
 
-    def test_currency_symbol_normalized(self):
+    def test_currency_symbol_normalized_no_price(self):
+        # No price to convert, so currency stays as the resolved ISO code
         product = normalize(_raw(currency="£"))
         assert product.currency == "GBP"
 
