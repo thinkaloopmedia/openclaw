@@ -1,5 +1,7 @@
 # openclaw
 
+**https://github.com/thinkaloopmedia/openclaw**
+
 Autonomous product data retrieval system. Fetches product pages on a schedule, extracts structured data via CSS selectors, normalises prices and availability, stores results with full price history, and exposes everything through a REST API.
 
 ## Architecture
