@@ -11,8 +11,8 @@ sources:
       availability: "p.instock.availability"
       description: "div#product_description ~ p"
       image_url: "div.item.active img"
-      rating: "p.star-rating"          # lands in extras
-      upc: "td:first-child + td"       # lands in extras
+      rating: "p.star-rating|attr:class" # lands in extras; value e.g. "star-rating Three"
+      upc: "table.table tr:first-child td"  # lands in extras
     urls:
       - https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html
       - https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html

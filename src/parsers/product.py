@@ -67,8 +67,21 @@ def parse(
     return raw
 
 
+_ATTR_SUFFIX = "|attr:"
+
+
 def _extract(soup: BeautifulSoup, field_name: str, selector: str, url: str) -> str | None:
-    """Select the first matching element and return its text or relevant attribute."""
+    """
+    Select the first matching element and return its value.
+
+    Selector may include an attribute extraction suffix:
+        "p.star-rating|attr:class"  →  returns the element's `class` attribute
+    Without the suffix, _element_value() picks the most meaningful value.
+    """
+    attr_name: str | None = None
+    if _ATTR_SUFFIX in selector:
+        selector, attr_name = selector.split(_ATTR_SUFFIX, 1)
+
     try:
         element = soup.select_one(selector)
     except Exception as exc:
@@ -78,6 +91,12 @@ def _extract(soup: BeautifulSoup, field_name: str, selector: str, url: str) -> s
     if element is None:
         logger.debug("No match for selector %r (field %r) on %s", selector, field_name, url)
         return None
+
+    if attr_name:
+        raw = element.get(attr_name)
+        if isinstance(raw, list):       # BeautifulSoup returns class as a list
+            return " ".join(raw) or None
+        return str(raw).strip() if raw else None
 
     return _element_value(element, field_name)
 

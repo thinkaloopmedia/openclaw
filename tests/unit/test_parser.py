@@ -66,6 +66,16 @@ class TestParse:
         raw = parse(_result(html), source_name="s", selectors={"image_url": "img.hero"})
         assert raw.image_url == "https://cdn.example.com/img.jpg"
 
+    def test_attr_suffix_extracts_attribute(self):
+        html = '<html><body><p class="star-rating Three"></p></body></html>'
+        raw = parse(_result(html), source_name="s", selectors={"rating": "p.star-rating|attr:class"})
+        assert raw.extras["rating"] == "star-rating Three"
+
+    def test_attr_suffix_returns_none_when_attr_missing(self):
+        html = '<html><body><p class="star-rating Three"></p></body></html>'
+        raw = parse(_result(html), source_name="s", selectors={"rating": "p.star-rating|attr:data-value"})
+        assert "rating" not in raw.extras
+
     def test_bad_selector_logs_warning_and_returns_none(self, caplog):
         import logging
         html = "<html><body></body></html>"
