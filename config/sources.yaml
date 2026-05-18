@@ -9,10 +9,7 @@ sources:
       name: "div.product_main h1"
       price: "p.price_color"
       availability: "p.instock.availability"
-      description: "div#product_description ~ p"
-      image_url: "div.item.active img"
       rating: "p.star-rating|attr:class"
-      upc: "table.table tr:first-child td"
     urls:
       - https://books.toscrape.com/catalogue/a-light-in-the-attic_1000/index.html
       - https://books.toscrape.com/catalogue/tipping-the-velvet_999/index.html
